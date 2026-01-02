@@ -1,6 +1,6 @@
 # QuantMS Docker Containers
 
-A repository of production-ready Docker and Singularity containers for proteomics tools, including **DIA-NN** and **OpenMS**.
+A repository of production-ready Docker and Singularity containers for proteomics tools with special in quantms, including **DIA-NN** and **OpenMS**.
 
 ## Overview
 
