@@ -7,6 +7,7 @@ on:
     branches: [ "main" ]
     paths:
       - 'diann-*/Dockerfile'
+      - 'relink-*/Dockerfile'
       - '.github/workflows/**'
   release:
     types: [published]
@@ -197,9 +198,93 @@ jobs:
       run: |
         echo "::error::Failed to build or push DiaNN 1.8.1 images. Check the logs for details."
 
+  build-relink-1-0-0:
+    name: Build and Push Relink 1.0.0 Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      RETRY_TIMES: 3
+      RETRY_DELAY: 30
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHCR_TOKEN }}
+
+    - name: Build and Push Relink 1.0.0 image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./relink-1.0.0
+        push: ${{ (github.event.inputs.push_images == true || github.event.inputs.push_images == '') }}
+        tags: |
+          ghcr.io/bigbio/relink:1.0.0
+          ghcr.io/bigbio/relink:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        provenance: false
+
+    - name: Set up Singularity
+      if: ${{ (github.event.inputs.push_images == true || github.event.inputs.push_images == '') }}
+      uses: eWaterCycle/setup-singularity@v7
+      with:
+        singularity-version: 3.8.7
+
+    - name: Pull Docker image for Singularity conversion
+      if: ${{ (github.event.inputs.push_images == true || github.event.inputs.push_images == '') }}
+      run: |
+        # Pull the Docker image from GitHub Container Registry
+        docker pull ghcr.io/bigbio/relink:1.0.0
+        # Save the Docker image to a tar file
+        docker save ghcr.io/bigbio/relink:1.0.0 -o relink-1.0.0.tar
+
+    - name: Convert Docker image to Singularity
+      if: ${{ (github.event.inputs.push_images == true || github.event.inputs.push_images == '') }}
+      run: |
+        # Convert Docker tar to Singularity SIF
+        singularity build relink-1.0.0.sif docker-archive://relink-1.0.0.tar
+        # Verify the SIF file exists
+        ls -la relink-1.0.0.sif
+
+    - name: Login and Deploy Container
+      if: (github.event_name != 'pull_request')
+      env:
+        IS_RELEASE: ${{ github.event_name == 'release' }}
+      run: |
+        echo ${{ secrets.GHCR_TOKEN }} | singularity remote login -u ${{ secrets.GHCR_USERNAME }} --password-stdin oras://ghcr.io
+        
+        # Push with version tag
+        singularity push relink-1.0.0.sif oras://ghcr.io/bigbio/relink-sif:1.0.0
+        
+        # If this is a release event, also tag as latest
+        if [[ "${{ env.IS_RELEASE }}" == "true" || "${{ github.event_name }}" == "release" ]]; then
+          singularity push relink-1.0.0.sif oras://ghcr.io/bigbio/relink-sif:latest
+        fi
+
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "::notice::Successfully built and pushed Relink 1.0.0 Docker and Singularity images to ghcr.io/bigbio"
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "::error::Failed to build or push Relink 1.0.0 images. Check the logs for details."
+
   sync-openms:
     name: Sync OpenMS Containers
-    needs: [build-diann-2-1-0, build-diann-1-8-1]
+    needs: [build-diann-2-1-0, build-diann-1-8-1, build-relink-1-0-0]
     runs-on: ubuntu-latest
     permissions:
       contents: read
