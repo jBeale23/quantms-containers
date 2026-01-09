@@ -5,7 +5,7 @@ LABEL base_image="python:3.12-slim"
 LABEL version="1"
 LABEL software="relink"
 LABEL software.version="1.0.0"
-LABEL about.summary="Container for relink pipeline: xiSEARCH, xiFDR, and Python dependencies for crosslinking mass spectrometry analysis"
+LABEL about.summary="Container for relink pipeline: xiSEARCH, xiFDR, Scout, and Dotnet / Python dependencies for crosslinking mass spectrometry analysis"
 LABEL about.home="https://github.com/bigbio/relink"
 LABEL about.documentation="https://github.com/bigbio/relink"
 LABEL about.license="Apache-2.0"
@@ -26,6 +26,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Dotnet runtime, MPFR, and GMP (required for Scout)
+RUN wget https://packages.microsoft.com/config/debian/13/packages-microsoft-prod.deb \
+	-O packages-microsoft-prod.deb && \
+	dpkg -i packages-microsoft-prod.deb && \
+	rm packages-microsoft-prod.deb && \
+	apt-get update && apt-get install -y --no-install-recommends \
+	dotnet-runtime-9.0 \
+	libmpfr-dev \
+	libgmp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create directory for xiSEARCH
 RUN mkdir -p /opt/xisearch
 
@@ -37,6 +48,21 @@ RUN wget --no-check-certificate \
     rm /tmp/xiSEARCH.zip && \
     cp /opt/xisearch/xiSEARCH_1.8.11/xiSEARCH.jar /opt/xisearch/xiSEARCH.jar && \
     cp /opt/xisearch/xiSEARCH_1.8.11/xiFDR-2.3.10.jar /opt/xisearch/xiFDR.jar
+
+# Create directory for Scout
+RUN mkdir -p /opt/scout
+
+# Download and install Scout 2.0.0
+RUN wget --no-check-certificate \
+	https://github.com/diogobor/Scout/releases/download/2.0.0/Scout_Linux64.zip \
+	-O /tmp/Scout.zip && \
+	unzip /tmp/Scout.zip -d /opt/scout && \
+	rm /tmp/Scout.zip && \
+	mv /opt/scout/Scout_Linux64/* /opt/scout && \
+	rmdir /opt/scout/Scout_Linux64
+
+# Set necessary env for scout
+ENV mpfr_path=/usr/lib/x86_64-linux-gnu gmp_path=/usr/lib/x86_64-linux-gnu
 
 # Install Python packages for mass recalibration
 # Using versions from pycross requirements.txt (pyopenms version left open for pip to resolve)
@@ -62,7 +88,7 @@ RUN pip install --no-cache-dir \
     six==1.17.0 \
     tzdata==2025.2
 
-# Clean up build tools (keep Java runtime)
+# Clean up build tools (keep Dotnet, MPFR, GMP, and Java runtime)
 RUN apt-get remove -y wget unzip build-essential && \
     apt-get autoremove -y && \
     apt-get clean && \
@@ -72,7 +98,9 @@ RUN apt-get remove -y wget unzip build-essential && \
 WORKDIR /data/
 
 # Verify installation
-RUN java -jar /opt/xisearch/xiSEARCH.jar --help || echo "xiSEARCH installed" && \
+RUN java -jar /opt/xisearch/xiSEARCH.jar --help 1>/dev/null && echo "xiSEARCH installed" && \
     ls -lh /opt/xisearch/*.jar && \
+	dotnet /opt/scout/Scout_Unix.dll | grep -q "Scout - v. 2.0.0" && echo "Scout installed" && \
+	ls -lh /opt/scout/Scout_Unix.dll && \
     python -c "import pyopenms; print(f'pyopenms {pyopenms.__version__}')" && \
     python -c "import polars; print(f'polars {polars.__version__}')"
