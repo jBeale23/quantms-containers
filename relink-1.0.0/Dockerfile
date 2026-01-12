@@ -41,12 +41,6 @@ RUN mkdir -p /opt/scout && wget -q \
 	mv /opt/scout/Scout_Linux64/* /opt/scout && \
 	rmdir /opt/scout/Scout_Linux64
 
-# Clean up build tools
-RUN apt-get remove -y wget unzip ca-certificates && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
 FROM python:3.12-slim AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
