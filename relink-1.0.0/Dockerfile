@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS build
 
 # Metadata
 LABEL base_image="python:3.12-slim"
@@ -13,35 +13,18 @@ LABEL about.tags="Proteomics,Crosslinking,Mass Spectrometry"
 LABEL maintainer="Yasset Perez-Riverol <ypriverol@gmail.com>"
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
 
-# Install Java runtime (required for xiSEARCH and xiFDR)
+# Build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openjdk-21-jre \
-    wget \
-    unzip \
-    ca-certificates \
-    libgomp1 \
-    procps \
-    && rm -rf /var/lib/apt/lists/*
+	wget \
+	unzip \
+	ca-certificates \
+	&& rm -rf /var/lib/apt/lists/* && \
+	wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
+	-O packages-microsoft-prod.deb
 
-# Install Dotnet runtime, MPFR, and GMP (required for Scout)
-RUN wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
-	-O packages-microsoft-prod.deb && \
-	dpkg -i packages-microsoft-prod.deb && \
-	rm packages-microsoft-prod.deb && \
-	apt-get update && apt-get install -y --no-install-recommends \
-	dotnet-runtime-9.0 \
-	libmpfr6 \
-	libgmp10 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create directory for xiSEARCH
-RUN mkdir -p /opt/xisearch
-
-# Download and install xiSEARCH 1.8.11
-RUN wget -q \
+# Install xiSEARCH 1.8.11 and xiFDR
+RUN mkdir -p /opt/xisearch && wget -q \
     https://www.rappsilberlab.org/wp-content/uploads/2025/12/xiSEARCH_1.8.11.zip \
     -O /tmp/xiSEARCH.zip && \
     unzip /tmp/xiSEARCH.zip -d /opt/xisearch && \
@@ -49,17 +32,44 @@ RUN wget -q \
     cp /opt/xisearch/xiSEARCH_1.8.11/xiSEARCH.jar /opt/xisearch/xiSEARCH.jar && \
     cp /opt/xisearch/xiSEARCH_1.8.11/xiFDR-2.3.10.jar /opt/xisearch/xiFDR.jar
 
-# Create directory for Scout
-RUN mkdir -p /opt/scout
-
-# Download and install Scout 2.0.0
-RUN wget -q \
+# Install Scout 2.0.0
+RUN mkdir -p /opt/scout && wget -q \
 	https://github.com/diogobor/Scout/releases/download/2.0.0/Scout_Linux64.zip \
 	-O /tmp/Scout.zip && \
 	unzip /tmp/Scout.zip -d /opt/scout && \
 	rm /tmp/Scout.zip && \
 	mv /opt/scout/Scout_Linux64/* /opt/scout && \
 	rmdir /opt/scout/Scout_Linux64
+
+# Clean up build tools
+RUN apt-get remove -y wget unzip ca-certificates && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+FROM python:3.12-slim AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+COPY --from=build packages-microsoft-prod.deb packages-microsoft-prod.deb
+
+# Install Java runtime (required for xiSEARCH and xiFDR) Dotnet runtime, MPFR, and GMP (required for Scout)
+RUN dpkg -i packages-microsoft-prod.deb && \
+	rm packages-microsoft-prod.deb && \
+	apt-get update && apt-get install -y --no-install-recommends \
+	dotnet-runtime-9.0 \
+	libmpfr6 \
+	libgmp10 \
+	openjdk-21-jre \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy xiSEARCH 1.8.11 and xiFDR from build stage
+COPY --from=build /opt/xisearch /opt/xisearch
+
+# Copy Scout 2.0.0 from build stage
+COPY --from=build /opt/scout /opt/scout 
 
 # Set necessary env for scout
 ENV mpfr_path=/usr/lib/x86_64-linux-gnu gmp_path=/usr/lib/x86_64-linux-gnu
@@ -87,12 +97,6 @@ RUN pip install --no-cache-dir \
     pyarrow==22.0.0 \
     six==1.17.0 \
     tzdata==2025.2
-
-# Clean up build tools (keep Dotnet, MPFR, GMP, and Java runtime)
-RUN apt-get remove -y wget unzip && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /data/
