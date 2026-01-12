@@ -41,7 +41,7 @@ RUN wget https://packages.microsoft.com/config/debian/13/packages-microsoft-prod
 RUN mkdir -p /opt/xisearch
 
 # Download and install xiSEARCH 1.8.11
-RUN wget --no-check-certificate \
+RUN wget -q \
     https://www.rappsilberlab.org/wp-content/uploads/2025/12/xiSEARCH_1.8.11.zip \
     -O /tmp/xiSEARCH.zip && \
     unzip /tmp/xiSEARCH.zip -d /opt/xisearch && \
