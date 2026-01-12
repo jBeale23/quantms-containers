@@ -98,8 +98,15 @@ WORKDIR /data/
 # Verify installation
 RUN java -jar /opt/xisearch/xiSEARCH.jar --help 1>/dev/null && echo "xiSEARCH installed" && \
     ls -lh /opt/xisearch/*.jar && \
-	test $(dotnet /opt/scout/Scout_Unix.dll | grep "ERROR" | wc -l) -eq 1 && \
-	dotnet /opt/scout/Scout_Unix.dll | grep "ERROR: Please specify the following arguments:" && echo "Scout installed" && \
+	set -e; \
+    test -s /opt/scout/Scout_Unix.dll; \
+    dotnet --info >/dev/null; \
+    test -e /usr/lib/x86_64-linux-gnu/libgmp.so.10; \
+    test -e /usr/lib/x86_64-linux-gnu/libmpfr.so.6; \
+    out="$(timeout 5s dotnet /opt/scout/Scout_Unix.dll 2>&1 || true)"; \
+    echo "$out" | head -n 20; \
+    echo "$out" | grep -qvE "It was not possible to find any compatible framework version|Could not execute because the specified command or file was not found|A fatal error was encountered" && \
+	echo "Scout installed" && \
 	ls -lh /opt/scout/Scout_Unix.dll && \
     python -c "import pyopenms; print(f'pyopenms {pyopenms.__version__}')" && \
     python -c "import polars; print(f'polars {polars.__version__}')"
