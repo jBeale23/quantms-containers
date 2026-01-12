@@ -33,8 +33,8 @@ RUN wget https://packages.microsoft.com/config/debian/13/packages-microsoft-prod
 	rm packages-microsoft-prod.deb && \
 	apt-get update && apt-get install -y --no-install-recommends \
 	dotnet-runtime-9.0 \
-	libmpfr-dev \
-	libgmp-dev \
+	libmpfr6 \
+	libgmp10 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create directory for xiSEARCH
@@ -100,7 +100,8 @@ WORKDIR /data/
 # Verify installation
 RUN java -jar /opt/xisearch/xiSEARCH.jar --help 1>/dev/null && echo "xiSEARCH installed" && \
     ls -lh /opt/xisearch/*.jar && \
-	dotnet /opt/scout/Scout_Unix.dll | grep -q "Scout - v. 2.0.0" && echo "Scout installed" && \
+	test $(dotnet /opt/scout/Scout_Unix.dll | grep "ERROR" | wc -l) -eq 1 && \
+	dotnet /opt/scout/Scout_Unix.dll | grep "ERROR: Please specify the following arguments:" && echo "Scout installed" && \
 	ls -lh /opt/scout/Scout_Unix.dll && \
     python -c "import pyopenms; print(f'pyopenms {pyopenms.__version__}')" && \
     python -c "import polars; print(f'polars {polars.__version__}')"
