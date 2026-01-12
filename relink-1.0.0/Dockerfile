@@ -53,7 +53,7 @@ RUN wget -q \
 RUN mkdir -p /opt/scout
 
 # Download and install Scout 2.0.0
-RUN wget --no-check-certificate \
+RUN wget -q \
 	https://github.com/diogobor/Scout/releases/download/2.0.0/Scout_Linux64.zip \
 	-O /tmp/Scout.zip && \
 	unzip /tmp/Scout.zip -d /opt/scout && \
