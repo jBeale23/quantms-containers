@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-21-jre \
     wget \
     unzip \
-    build-essential \
+    ca-certificates \
     libgomp1 \
     procps \
     && rm -rf /var/lib/apt/lists/*
