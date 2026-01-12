@@ -89,7 +89,7 @@ RUN pip install --no-cache-dir \
     tzdata==2025.2
 
 # Clean up build tools (keep Dotnet, MPFR, GMP, and Java runtime)
-RUN apt-get remove -y wget unzip build-essential && \
+RUN apt-get remove -y wget unzip && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
