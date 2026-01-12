@@ -47,11 +47,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-COPY --from=build packages-microsoft-prod.deb packages-microsoft-prod.deb
+# Copy necessary package for dotnet-runtime from build stage
+COPY --from=build packages-microsoft-prod.deb /tmp/packages-microsoft-prod.deb
 
 # Install Java runtime (required for xiSEARCH and xiFDR) Dotnet runtime, MPFR, and GMP (required for Scout)
-RUN dpkg -i packages-microsoft-prod.deb && \
-	rm packages-microsoft-prod.deb && \
+RUN dpkg -i /tmp/packages-microsoft-prod.deb && \
+	rm /tmp/packages-microsoft-prod.deb && \
 	apt-get update && apt-get install -y --no-install-recommends \
 	dotnet-runtime-9.0 \
 	libmpfr6 \
