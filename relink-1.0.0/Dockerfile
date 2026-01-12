@@ -66,7 +66,7 @@ COPY --from=build /opt/xisearch /opt/xisearch
 COPY --from=build /opt/scout /opt/scout 
 
 # Set necessary env for scout
-ENV mpfr_path=/usr/lib/x86_64-linux-gnu gmp_path=/usr/lib/x86_64-linux-gnu
+ENV MPFR_PATH=/usr/lib/x86_64-linux-gnu GMP_PATH=/usr/lib/x86_64-linux-gnu
 
 # Install Python packages for mass recalibration
 # Using versions from pycross requirements.txt (pyopenms version left open for pip to resolve)
