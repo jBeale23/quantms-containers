@@ -53,8 +53,9 @@ COPY --from=build packages-microsoft-prod.deb /tmp/packages-microsoft-prod.deb
 # Install Java runtime (required for xiSEARCH and xiFDR) Dotnet runtime, MPFR, and GMP (required for Scout)
 RUN dpkg -i /tmp/packages-microsoft-prod.deb && \
 	rm /tmp/packages-microsoft-prod.deb && \
-	apt-get update && apt-get install -y --no-install-recommends \
-	dotnet-runtime-9.0 \
+	apt-get --allow-insecure-repositories --allow-unauthenticated update && apt-get install --allow-unauthenticated -y --no-install-recommends \
+	dotnet-runtime-9.0 && \
+	apt-get install -y --no-install-recommends \
 	libmpfr6 \
 	libgmp10 \
 	openjdk-21-jre \
